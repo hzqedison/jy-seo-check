@@ -1,5 +1,10 @@
 """PageSpeed Insights —— 读 config.env 的 API key，返回 CWV（CrUX 真实 + Lighthouse 实验室）。"""
-import os, json, subprocess, urllib.parse
+import os, sys, json, subprocess, urllib.parse
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 
 
 def _load_key():
