@@ -63,6 +63,9 @@ python scripts/audit.py <domain> [--compare] [--core /p1/,/p2/]
 | `scripts/pagespeed.py` | PageSpeed Insights API(读 config.env 或环境变量的 key),解析 CrUX + Lighthouse |
 | `scripts/snapshot.py` | 快照读写工具 |
 | `scripts/compare.py` | 对比两次快照 → diff |
+| `scripts/cdp.py` | **反爬 fallback**:真实 Chrome 绕过 Cloudflare 抓 SEO 标签（audit 检测到挑战页时自动调用，自动启正式版 Chrome 独立 profile）|
+
+> **反爬处理**：audit.py 检测到首页是 Cloudflare/WAF 挑战页（"Just a moment"）时，自动切 `cdp.py` 用真实浏览器抓真实 DOM；内页/核心页标注"受反爬拦截"而非误报缺失。需正式版 Chrome + `pip install websocket-client`。
 
 ## references 索引
 

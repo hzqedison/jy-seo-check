@@ -82,12 +82,29 @@ def main():
     else:
         F["sitemap"] = {"error": "无法获取/解析", "url": sm_url}
 
-    # 4 首页
+    # 4 首页（curl；遇反爬挑战页自动切 CDP 真实浏览器）
     home = fetch.get(final)
-    home_seo = parse_html.parse(home)
+    low = home.lower()
+    antibot = ("just a moment" in low or "challenges.cloudflare.com" in low
+               or "cf-browser-verification" in low or "enable javascript and cookies" in low)
+    F["antibot"] = antibot
+    if antibot:
+        F["issues"].append("[反爬] 检测到 Cloudflare/WAF 挑战页，curl 被拦 → 切 CDP 真实浏览器")
+        import cdp
+        cres = cdp.fetch(final)
+        if cres.get("title"):
+            home_seo = cres
+            F["via"] = "CDP"
+            if cres.get("sitemap") and F.get("sitemap", {}).get("error"):
+                F["sitemap"] = cres["sitemap"]; F["sitemap"]["via"] = "CDP"
+        else:
+            F["issues"].append(f"[反爬] CDP 抓取失败: {cres.get('error', '?')}（需手动启动 Chrome 调试）")
+            home_seo = parse_html.parse(home)
+    else:
+        home_seo = parse_html.parse(home)
     tt = fetch.ttfb(final, 2)
     F["homepage"] = {"url": final, "ttfb_samples": tt, "seo": home_seo}
-    for i in home_seo["issues"]:
+    for i in home_seo.get("issues", []):
         F["issues"].append(f"[首页] {i}")
     if tt:
         avg = round(sum(x["ttfb"] for x in tt) / len(tt), 3)
@@ -101,12 +118,15 @@ def main():
         cand = [u for u in F["sitemap"]["sample_locs"] if "/blog/" in u or "/article" in u]
         inner = (cand or F["sitemap"]["sample_locs"])[:1]
     F["inner_pages"] = []
-    for u in inner[:3]:
-        seo = parse_html.parse(fetch.get(u))
-        F["inner_pages"].append({"url": u, "seo": seo})
-        tag = u.rstrip("/").rsplit("/", 1)[-1][:30]
-        for i in seo["issues"]:
-            F["issues"].append(f"[内页:{tag}] {i}")
+    if antibot:
+        F["issues"].append("[反爬] 内页 curl 被拦，未抽检内页标签（如需用 CDP 逐页抓）")
+    else:
+        for u in inner[:3]:
+            seo = parse_html.parse(fetch.get(u))
+            F["inner_pages"].append({"url": u, "seo": seo})
+            tag = u.rstrip("/").rsplit("/", 1)[-1][:30]
+            for i in seo["issues"]:
+                F["issues"].append(f"[内页:{tag}] {i}")
 
     # 6 核心页/工具页存在性
     def _clean_core(p):
@@ -123,6 +143,8 @@ def main():
         F["core_pages"].append({"path": "/" + p + "/", "url": url, "status": code})
         if code in ("404", "410", "000"):
             F["issues"].append(f"核心页缺失: /{p}/ ({code})")
+        elif code == "403" and antibot:
+            F["issues"].append(f"核心页 /{p}/ 受反爬拦截(403)，存在性需 CDP 验证")
 
     # 7 PageSpeed
     if not a.no_psi:
