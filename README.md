@@ -19,7 +19,7 @@
    ```json
    {
      "name": "jy-seo-check",
-     "url": "<本仓库地址；本地可用绝对路径，如 K:/AI/jy-seo-check>",
+     "url": "https://github.com/hzqedison/jy-seo-check.git",
      "targets": [".claude/skills/jy-seo-check"],
      "postInstall": [
        { "description": "同步 /jy-seo-check 命令", "script": "sync-jy-seo-check-commands.ps1" }
@@ -30,7 +30,7 @@
 3. 在目标仓库根目录运行：`.\scripts\install-skills.ps1`
    → 会把 skill clone 到 `.claude/skills/jy-seo-check/`，并把命令同步到 `.claude/commands/jy-seo-check.md`。
 
-> 未来推送到 Gitee/GitHub 后，把 `url` 换成远程地址即可团队分发。
+> 已发布到 GitHub（公开）：https://github.com/hzqedison/jy-seo-check —— 团队/其他设备可直接 clone 安装。
 
 ## 配置 API key（性能诊断需要）
 
