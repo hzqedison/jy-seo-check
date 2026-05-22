@@ -1,0 +1,9 @@
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 本地密钥（含真实 API key，不入库；用 config.env.example 作模板）
+config.env
+
+# 实诊快照（如不想把诊断历史放进本 skill 仓库，可忽略；默认快照存在被分析项目里，不在这）
+.seo-audit/
