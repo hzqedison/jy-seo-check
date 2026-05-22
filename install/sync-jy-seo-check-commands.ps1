@@ -1,17 +1,18 @@
 # sync-jy-seo-check-commands.ps1
-# 由 install-skills.ps1 的 postInstall 调用：把 jy-seo-check 的斜杠命令同步到 .claude/commands/
-# 安装方法：把本文件复制到目标仓库的 scripts/ 下，并在 .claude/skills.json 的 jy-seo-check 条目里
-#           用 postInstall 引用它（script: sync-jy-seo-check-commands.ps1）。
+# Called by install-skills.ps1 postInstall: sync the /jy-seo-check slash command to .claude/commands/
+# Install: copy this file into the target repo's scripts/ and reference it in .claude/skills.json's
+#          jy-seo-check entry via postInstall (script: sync-jy-seo-check-commands.ps1).
+# (ASCII-only on purpose: avoids Windows PowerShell 5.1 UTF-8 parsing issues.)
 param([string]$Root = (Split-Path $PSScriptRoot -Parent))
 
 $src = Join-Path $Root ".claude\skills\jy-seo-check\commands\jy-seo-check.md"
 $cmdDir = Join-Path $Root ".claude\commands"
 
 if (-not (Test-Path $src)) {
-    Write-Host "  [warn] jy-seo-check 尚未安装，跳过命令同步" -ForegroundColor Yellow
+    Write-Host "  [warn] jy-seo-check not installed yet, skip command sync" -ForegroundColor Yellow
     return
 }
 
 New-Item -ItemType Directory -Force $cmdDir | Out-Null
 Copy-Item $src (Join-Path $cmdDir "jy-seo-check.md") -Force
-Write-Host "  [ok] /jy-seo-check 命令已同步到 .claude/commands/"
+Write-Host "  [ok] /jy-seo-check command synced to .claude/commands/"
