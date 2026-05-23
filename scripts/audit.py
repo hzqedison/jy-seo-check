@@ -29,7 +29,20 @@ def norm(domain):
     return domain.rstrip("/")
 
 
-def analyze_sitemap(xml):
+def analyze_sitemap(xml, fetch_fn=None):
+    # sitemap-index：递归抓子 sitemap，统计真实 URL 总数（避免把"子 sitemap 数"误当 URL 数）
+    if "<sitemapindex" in xml.lower() and fetch_fn:
+        subs = re.findall(r'<loc[^>]*>([^<]+)</loc>', xml, re.I)
+        total, years, sample = 0, Counter(), []
+        for sub in subs[:25]:  # 限 25 个子 sitemap，避免过多请求
+            sx = fetch_fn(sub.strip())
+            total += len(re.findall(r'<loc[\s>]', sx, re.I))
+            years.update(re.findall(r'<lastmod>(\d{4})', sx))
+            if len(sample) < 10:
+                sample += re.findall(r'<loc[^>]*>([^<]+)</loc>', sx, re.I)[:5]
+        return {"url_count": total, "is_index": True, "sub_sitemaps": len(subs),
+                "by_path": {}, "lastmod_years": dict(sorted(years.items())),
+                "sample_locs": sample[:10]}
     locs = re.findall(r'<loc[^>]*>([^<]+)</loc>', xml, re.I)
     count = len(re.findall(r'<loc[\s>]', xml, re.I))  # 最稳计数（等价 grep -c）
 
@@ -39,7 +52,7 @@ def analyze_sitemap(xml):
     by_path = dict(Counter(seg(u) for u in locs).most_common(15))
     years = dict(sorted(Counter(re.findall(r'<lastmod>(\d{4})', xml)).items()))
     gen = re.findall(r'<!--\s*(.*?)\s*-->', xml)
-    return {"url_count": count, "by_path": by_path, "lastmod_years": years,
+    return {"url_count": count, "is_index": False, "by_path": by_path, "lastmod_years": years,
             "generator_comments": gen[:3], "sample_locs": locs[:10]}
 
 
@@ -75,7 +88,7 @@ def main():
     sm_url = sm_decl[0].strip() if sm_decl else base + "/sitemap.xml"
     sm = fetch.get(sm_url)
     if "<loc" in sm.lower() or "<sitemap" in sm.lower():
-        F["sitemap"] = analyze_sitemap(sm); F["sitemap"]["url"] = sm_url
+        F["sitemap"] = analyze_sitemap(sm, fetch.get); F["sitemap"]["url"] = sm_url
         yrs = F["sitemap"]["lastmod_years"]
         if yrs and max(yrs) < "2025":
             F["issues"].append(f"sitemap lastmod 最新仅 {max(yrs)}（疑过期）")
@@ -128,7 +141,11 @@ def main():
             for i in seo["issues"]:
                 F["issues"].append(f"[内页:{tag}] {i}")
 
-    # 6 核心页/工具页存在性
+    # 6 核心页/工具页存在性（含软 404 检测：站点对不存在路径是否也返回 200）
+    soft404 = (not antibot) and fetch.status(core_base + "/__seocheck404probe__/") == "200"
+    F["soft404"] = soft404
+    if soft404:
+        F["issues"].append("[软404] 站点对不存在路径也返回 200（SPA/软404）→ 核心页 200 不代表真实存在，需看页面内容")
     def _clean_core(p):
         p = p.strip().strip("/")
         # 修复 Git-Bash(MSYS)对前导斜杠路径的自动转换，如 C:/Program Files/Git/reduce-ping
@@ -140,7 +157,8 @@ def main():
     for p in core:
         url = core_base + "/" + p + "/"
         code = fetch.status(url)
-        F["core_pages"].append({"path": "/" + p + "/", "url": url, "status": code})
+        note = "(软404存疑)" if (code == "200" and soft404) else ""
+        F["core_pages"].append({"path": "/" + p + "/", "url": url, "status": code, "note": note})
         if code in ("404", "410", "000"):
             F["issues"].append(f"核心页缺失: /{p}/ ({code})")
         elif code == "403" and antibot:
