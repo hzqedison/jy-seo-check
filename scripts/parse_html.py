@@ -126,6 +126,12 @@ def parse(html, page_url=None):
     if r["link_total"] == 0:
         issues.append("页面无可抓取 <a href> 链接（疑似 JS 渲染/onclick 跳转）")
 
+    # onclick 跳转的伪链接（爬虫抓不到，权重不传递）
+    onclick_nav = re.findall(r'<(?:div|span|button|li)[^>]*\bonclick=["\'][^"\']*(?:location|href|navigate|router|goto|window\.open|\.push)[^"\']*["\']', html, re.I)
+    r["onclick_nav_count"] = len(onclick_nav)
+    if onclick_nav and len(onclick_nav) >= 3 and len(onclick_nav) > r["link_total"] * 0.2:
+        issues.append(f"{len(onclick_nav)} 处用 onclick 跳转（非 <a href>，爬虫无法抓取/不传权重）")
+
     # 文本密度（空壳/CSR 检测）：纯文本字符 / HTML 总长
     text = re.sub(r'<(script|style)[^>]*>.*?</\1>', ' ', html, flags=re.S | re.I)
     text = re.sub(r'<[^>]+>', ' ', text)

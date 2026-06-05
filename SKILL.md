@@ -34,9 +34,11 @@ PPT 用 `pptx` skill(`extract-text` + 提取图片逐张看);Word 用 `docx`;PDF
 
 ### 3. 实时实诊
 ```bash
-python scripts/audit.py <domain> [--compare] [--core /p1/,/p2/]
+python scripts/audit.py <domain> [--compare] [--core /p1/,/p2/] [--render]
 ```
-一键技术体检:跳转链、robots、sitemap(数量/覆盖/lastmod)、首页+抽样内页的 SEO 标签(title/desc/canonical/hreflang/H1/Schema)、TTFB、核心场景页/工具页存在性、PageSpeed/CWV(需 API key)。结果存为快照(见下)。详细检查项见 `references/tech-audit-checklist.md`。
+一键技术体检:跳转链、robots(含屏蔽首页判断)、sitemap(数量/覆盖/lastmod，自动递归 sitemap-index)、首页+抽样内页 SEO 标签(title/desc/canonical 唯一性+自指、hreflang、H1、H2/H3、meta robots noindex、Schema、img 宽高/alt、内链、onclick 伪链接、文本密度空壳)、X-Robots-Tag、TTFB、核心页存在性(含软404检测)、PageSpeed/CWV(需 API key)。
+- `--render`:CDP 双跑，做 **hydration 前后 diff**(SSR vs 渲染后 H1/canonical/链接变化) + **移动/桌面 DOM diff**(移动端是否删减核心内容)。慢，按需开启。
+结果存为快照(见下)。详细检查项见 `references/tech-audit-checklist.md`。
 
 ### 4. 校准(实诊 × 材料)
 把实诊结果与材料论断对照,分三类输出:**坐实**(实证确认)/ **新发现**(材料没提)/ **乐观点**(材料说有问题但实诊已不成立——避免误伤)。

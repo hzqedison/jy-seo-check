@@ -63,6 +63,7 @@ def main():
     ap.add_argument("--pages", default="")
     ap.add_argument("--core", default="")
     ap.add_argument("--no-psi", action="store_true")
+    ap.add_argument("--render", action="store_true", help="CDP 双跑：hydration 前后 + 移动/桌面 DOM diff（慢）")
     a = ap.parse_args()
 
     base = norm(a.domain)
@@ -185,6 +186,16 @@ def main():
             lcp_cat = ps.get("field", {}).get("LCP_ms", {}).get("cat")
             if ps.get("crux_overall") == "SLOW" or lcp_cat == "SLOW":
                 F["issues"].append(f"[性能:{s}] CWV/LCP 不佳（{ps.get('crux_overall')}）")
+
+    # 8 渲染对比（--render）：③ hydration 前后 + ⑤ 移动/桌面 DOM diff（CDP 双跑，慢）
+    if a.render:
+        import cdp
+        cr = cdp.compare_render(final, ssr_html=(None if antibot else home))
+        F["render_compare"] = cr
+        for i in cr.get("issues", []):
+            F["issues"].append(f"[渲染] {i}")
+        if cr.get("error"):
+            F["issues"].append(f"[渲染] 对比失败: {cr['error']}")
 
     # 存快照
     sd = snapshot.new_dir()
