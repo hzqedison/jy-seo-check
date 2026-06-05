@@ -59,6 +59,12 @@ def get(url, timeout=30):
     return out
 
 
+def headers(url, timeout=20):
+    """跟随跳转，返回最终响应头文本。"""
+    out, _, _ = _curl(["-sIL", url], timeout)
+    return out
+
+
 def status(url, timeout=20):
     """不跟随跳转，返回首个 HTTP 状态码字符串。"""
     out, _, _ = _curl(["-o", os.devnull, "-w", "%{http_code}", url], timeout)

@@ -81,8 +81,12 @@ def main():
     # 2 robots
     robots = fetch.get(base + "/robots.txt")
     sm_decl = re.findall(r'(?im)^\s*Sitemap:\s*(.+)$', robots)
-    F["robots"] = {"disallow": re.findall(r'(?im)^\s*Disallow:\s*(.+)$', robots)[:20],
+    disallow = re.findall(r'(?im)^\s*Disallow:\s*(.+)$', robots)
+    F["robots"] = {"disallow": [d.strip() for d in disallow][:20],
                    "sitemaps": [s.strip() for s in sm_decl]}
+    # 是否屏蔽首页（Disallow: / 或 Disallow: /$）
+    if any(d.strip() in ("/", "/$") for d in disallow):
+        F["issues"].append("robots.txt 屏蔽了首页（Disallow: /）→ 全站不被抓取")
 
     # 3 sitemap
     sm_url = sm_decl[0].strip() if sm_decl else base + "/sitemap.xml"
@@ -112,9 +116,15 @@ def main():
                 F["sitemap"] = cres["sitemap"]; F["sitemap"]["via"] = "CDP"
         else:
             F["issues"].append(f"[反爬] CDP 抓取失败: {cres.get('error', '?')}（需手动启动 Chrome 调试）")
-            home_seo = parse_html.parse(home)
+            home_seo = parse_html.parse(home, final)
     else:
-        home_seo = parse_html.parse(home)
+        home_seo = parse_html.parse(home, final)
+    # X-Robots-Tag HTTP header（HTML meta 之外的索引限制来源）
+    hdrs = fetch.headers(final).lower()
+    xrobots = re.findall(r'x-robots-tag:\s*(.+)', hdrs)
+    if any("noindex" in x or "nofollow" in x for x in xrobots):
+        F["issues"].append(f"HTTP 头 X-Robots-Tag 含 noindex/nofollow（{'; '.join(x.strip() for x in xrobots)}）")
+    F["x_robots_tag"] = [x.strip() for x in xrobots]
     tt = fetch.ttfb(final, 2)
     F["homepage"] = {"url": final, "ttfb_samples": tt, "seo": home_seo}
     for i in home_seo.get("issues", []):
@@ -135,7 +145,7 @@ def main():
         F["issues"].append("[反爬] 内页 curl 被拦，未抽检内页标签（如需用 CDP 逐页抓）")
     else:
         for u in inner[:3]:
-            seo = parse_html.parse(fetch.get(u))
+            seo = parse_html.parse(fetch.get(u), u)
             F["inner_pages"].append({"url": u, "seo": seo})
             tag = u.rstrip("/").rsplit("/", 1)[-1][:30]
             for i in seo["issues"]:
