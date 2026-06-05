@@ -10,9 +10,10 @@
 ## 2. robots.txt
 - 查：Disallow 规则 + Sitemap 声明。
 - 判断：是否误封核心目录；是否屏蔽了应屏蔽的（/api /checkout /user）；**是否漏屏蔽大量低质页**。
+- **自动报警**：`Disallow: /` 或 `Disallow: /$` → 屏蔽了首页/全站。
 
 ## 3. sitemap
-- 查：URL 总数、按路径分类、lastmod 年份、生成器注释。
+- 查：URL 总数、按路径分类、lastmod 年份、生成器注释。**遇 `<sitemapindex>` 自动递归子 sitemap（最多 25 个）统计真实 URL 总数**，避免把"子 sitemap 数"误当 URL 数。
 - 判断：
   - 覆盖率 = sitemap URL 数 / 全站页数（常见低至个位数~两成，说明大量页面未提交）。
   - **lastmod 过期**（停在 N 年前）→ 非自动化生成。
@@ -21,14 +22,32 @@
 ## 4. 页面 SEO 标签（首页 + 抽样内页）
 | 标签 | 判断标准 |
 |---|---|
-| title | 存在、含核心词、唯一 |
-| meta description | 存在、含关键词 |
-| canonical | 存在、自引用正确 |
+| title | 存在、含核心词、**唯一（多个 → 报警）** |
+| meta description | 存在、含关键词、**唯一** |
+| canonical | 存在、**唯一（多个 → Google 全忽略）**、**自指比对**（canonical 应等于当前页 URL） |
+| meta robots | **不应含 noindex/nofollow**（含 → 丢索引/不传权重） |
 | hreflang | x-default **小写**；内页也要有；多站需双向自指一致 |
 | **H1** | **每页仅 1 个**；不可用于面包屑/导航（典型坑：内页出现多个 H1，其中数个其实是面包屑层级） |
-| Schema | 按页型齐全：首页 Organization/WebSite/Product/SoftwareApplication；文章页 Article/FAQ/HowTo；**内页常为 0** |
+| H2/H3 | 有合理层级；有 H1 却无 H2 → 模块结构弱 |
+| Schema | 按页型齐全：首页 Organization/WebSite/Product/SoftwareApplication（**+AggregateRating 出星级**）；文章页 Article/FAQ/HowTo；**内页常为 0** |
+| img | 有意义图配 alt；**显式 width/height**（缺 → CLS 风险）；关键文案不放图里 |
+| 内链 | 用真实 `<a href>`；**`onclick` 跳转的伪链接爬虫抓不到/不传权重** |
+| 文本密度 | text/HTML 比例过低 + 正文极短 → **CSR 空壳**（核心内容未在首个 HTML，依赖 JS 渲染） |
 
 > 注意校准：首页标签齐全 ≠ 内页齐全。务必抽检内页（材料说"Schema 不足"可能只在内页成立）。
+
+## 4b. HTTP 头 / 索引控制
+- **X-Robots-Tag**：HTTP 响应头里的索引限制（HTML meta 之外的来源）。含 noindex/nofollow → 与 meta 同等严重。
+- 查：`curl -IL` 看响应头。
+
+## 4c. 反爬 fallback（CDP）
+- 首页若是 Cloudflare/WAF 挑战页（"Just a moment" / `challenges.cloudflare.com` / "enable javascript and cookies"）→ curl 被 403/拦截。
+- `audit.py` 自动切 `cdp.py`：启正式版 Chrome 独立 profile，等挑战 JS 通过，抓真实 DOM。
+- 此时内页/核心页标注「受反爬拦截，存在性需 CDP 验证」而非误报缺失。
+
+## 4d. 渲染对比（`--render`，CDP 双跑，慢）
+- **hydration 前后 diff**：SSR 首个 HTML vs 渲染后 DOM，比 H1 数 / canonical / 链接数 —— 抓「客户端脚本改写 canonical」「hydration 后链接锐减」等问题。
+- **移动/桌面 DOM diff**：移动 UA vs 桌面，比 H1/链接/正文 —— 抓「移动端删减核心内容」（移动优先索引下会丢内容）。
 
 ## 5. 性能 / Core Web Vitals
 - 查：`pagespeed.py`（CrUX 真实 + Lighthouse 实验室）；无 key 时退回 `curl` 测 TTFB。

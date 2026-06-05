@@ -6,10 +6,17 @@
 
 - **苏格拉底式需求澄清** → 形成 SPEC（五章：Problem/Solution/Constraints/Non-goals/Success）
 - **读诊断材料**：PPT / Word / PDF（配合 pptx/docx/pdf skill，逐图逐字）
-- **实时技术实诊**（脚本，零第三方依赖）：跳转链 / robots / sitemap 覆盖率 / SEO 标签（title/desc/canonical/hreflang/H1 面包屑误用/Schema）/ TTFB / Core Web Vitals / 核心场景页与工具页存在性
+- **实时技术实诊**（脚本，零第三方依赖）：
+  - 跳转链（跳数 + 302/308 识别）、robots（含「屏蔽首页」判断）、sitemap（**自动递归 sitemap-index** 统计真实 URL 数 + lastmod 年份）
+  - 页面 SEO 标签：title / description / canonical（**唯一性 + 自指比对**）、hreflang（x-default 大小写）、H1（面包屑误用）、H2/H3 层级、**meta robots noindex**、Schema、**img 宽高/alt**、**内链 + onclick 伪链接**、**文本密度（CSR 空壳检测）**
+  - **X-Robots-Tag** HTTP 头、TTFB、Core Web Vitals（CrUX 真实场地数据）、核心页存在性（**软 404 检测**）
+- **反爬 fallback（CDP）**：检测到 Cloudflare/WAF 挑战页时，自动启正式版 Chrome 独立 profile + 直连 CDP 抓真实 DOM（curl/Jina 被 403 的站也能拿到标签）
+- **渲染对比（`--render`）**：hydration 前后 diff（SSR vs 渲染后 H1/canonical/链接变化）+ 移动/桌面 DOM diff（移动端是否删减核心内容）
 - **实诊 × 材料校准**：坐实 / 新发现 / 乐观点（避免误伤）
 - **字段化改进方案**：Quick Wins（1-4 周）+ Strategic Moves（1-3 月+），每条带 负责方/工作量/漏斗节点/预期信号/验证/成本/来源
 - **快照对比再分析**：每次实诊存快照，下次自动 diff（改善/恶化/新问题/已解决）
+
+> 既可做**竞品横向扫描**，也可做**自家上线前技术 SEO 验收**（覆盖典型「首页改版技术 SEO 清单」约 90%）。
 
 ## 安装到一个项目
 
@@ -47,7 +54,10 @@ PageSpeed/CWV 需要免费的 Google PageSpeed Insights API key。
 直接用脚本（不经 skill）：
 ```bash
 python scripts/audit.py example.com --core "pricing,features,blog" --compare
+python scripts/audit.py example.com --render   # 额外做 hydration + 移动/桌面渲染对比（慢）
 ```
+
+参数：`--core` 行业相关路径(逗号分隔) · `--compare` 对比上次快照 · `--render` CDP 双跑渲染对比 · `--no-psi` 跳过性能。
 
 ## 目录结构
 
@@ -59,7 +69,7 @@ jy-seo-check/
 ├── commands/jy-seo-check.md # /jy-seo-check 斜杠命令
 ├── docs/api-key-guide.md    # API key 申请教程
 ├── install/                 # 安装辅助（命令同步脚本）
-├── scripts/                 # 实诊脚本（audit/fetch/parse_html/pagespeed/snapshot/compare）
+├── scripts/                 # 实诊脚本（audit/fetch/parse_html/pagespeed/snapshot/compare/cdp）
 └── references/              # 方法论与模板（methodology/spec/plan/checklist/topic-cluster）
 ```
 
